@@ -35,17 +35,12 @@ class L2Switch(app_manager.RyuApp):
                 if self.port_to_ip[in_port] is None:
                     #Assign new Ip to designated port
 
-                else:
-                    switchIp = self.port_to_ip[in_port]
-
                 #Check if the port already has a MAC, if it doesnt a new MAC will be Assigned
                 if self.port_to_mac[in_port] is None:
                     #Assign new Ip to designated port
 
-                else:
-                    switchMac = self.port_to_mac[in_port]
-
-
+                switchMac = self.port_to_mac[in_port]
+                switchIp = self.port_to_ip[in_port]
 
                 #Read the packet received from the switch to extract the information
                 pkt = packet.Packet(msg.data)
@@ -58,14 +53,16 @@ class L2Switch(app_manager.RyuApp):
                 #Check for ARP header
                 arp = pkt.get_protocol(arp.arp)
                 if arp is not None:
-                    operation = arp.opcode
-
-
+                    processArp(arp)
 
                 #Check for rules
 
                 #Stablish relation between MAC and Port
-                self.mac_to_port[srcMac] = in_port 
+
+                if self.mac_to_port[srcMac] is None:
+                    #insert into the Switching flow mac & in_port
+                    #insert into local dictionary
+                    self.mac_to_port[srcMac] = in_port
 
 		#actions = [ofp_parser.OFPActionOutput(ofp.OFPP_FLOOD)]
 		#out = ofp_parser.OFPPacketOut(
