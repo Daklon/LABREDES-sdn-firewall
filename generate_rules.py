@@ -8,4 +8,4 @@ with open('rules-test.txt', 'w') as csvfile:
     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
     writer.writeheader()
-    writer.writerow({'SourceIp':'1.1.1.1','DestIp':'2.2.2.2','Protocol':'TCP','SourcePort':'80','DestPort':'80','SourceInterface':'eth1','DestInterface':'eth2'})
+    writer.writerow({'SourceIp':'1.1.1.0/24','DestIp':'2.2.2.2/24','Protocol':'TCP','SourcePort':'80','DestPort':'80','SourceInterface':'eth1','DestInterface':'eth2'})
