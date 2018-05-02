@@ -22,12 +22,12 @@ def genArpMessage(dstMac, dstIp, srcMac, srcIp, operation):
 def genArpRequest(srcMac, srcIp, dstIp):
 
     p = genArpMessage('ff:ff:ff:ff:ff:ff', dstIp, srcMac, srcIp,0)
-    print repr(p.data)
+    return p
 
 def genArpResponse(dstMac, dstIp, srcMac, srcIp):
 
     p = genArpMessage(dstMac, dstIp, srcMac, srcIp, 2)
-    print repr(p.data)
+    return p
 
 def processArpRequest(p, srcMac, srcIp):
 
