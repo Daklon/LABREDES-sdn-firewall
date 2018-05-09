@@ -1,2 +1,2 @@
 SourceIp,DestIp,Protocol,SourcePort,DestPort,SourceInterface,DestInterface
-1.1.1.0/24,2.2.2.2/24,TCP,80,80,eth1,eth2
+1.1.1.0/24,2.2.2.2/24,TCP,80,80,1,2
