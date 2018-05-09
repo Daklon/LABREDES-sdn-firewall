@@ -20,6 +20,21 @@ class L2Switch(app_manager.RyuApp):
                 self.port_to_ip = {}
                 self.port_to_mac = {}
 
+        def add_rules_flow():
+            #mod = datapath.ofproto_parser(datapath, cookie=0, cookie_mask=0, table_id, command, timeout, hard_timeout=0 priority=32768,
+            #                              buffer_id=4294967295, out_port=0, out_group=0, flags=0, importance=0, match=None, 
+            #                              instructions=None)
+            #
+            # datapath: Identifica el switch al que se le va a modificar la tabla de flujo
+            # cookie y cookie_mask no los vamos a usar
+            # table_id: Identifica la tabla del switch que se va a modificar
+            # command: 
+            
+            
+        def add_conms_flow():
+
+
+
 	@set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
 	def packet_in_handler(self, ev):
 		msg = ev.msg
