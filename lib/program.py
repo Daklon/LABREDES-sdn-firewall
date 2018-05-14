@@ -13,19 +13,17 @@ class L2Switch(app_manager.RyuApp):
 
 	def __init__(self, *args, **kwargs):
 		super(L2Switch, self).__init__(*args, **kwargs)
-                self.ip_mac_gen  = AssignmentIP_Mac(baseIP, baseMAC)
-                self.pckt_queue  = []
-                self.port_mac_ip = {}
-                self.mac_to_port = {} 
-                self.port_to_ip  = {}
-                self.port_to_mac = {}
+                self.ip_mac_gen    = AssignmentIP_Mac(baseIP, baseMAC)
+                self.pckt_queue    = []
+                self.port_mac_ip   = {}
+                self.address_cache = {}
 
         def add_flow(self,datapath, inMatch, inAction, tableId):
             ofproto = datapath.ofproto
             ofproto_parser = datapath.ofproto_parser
 
             # inst = [ofproto_parser.OFPInstructionActions(1)]
-            # inst = [ofproto_parser.OFPInstructionGotoTable(1)]
+            # inst = [ofproto_parser.OF1PInstructionGotoTable(1)]
             # si no se acepta es None
             
             # match si es None 
@@ -90,14 +88,11 @@ class L2Switch(app_manager.RyuApp):
                 in_port = msg.in_port
 
                 #Check if the port already has an IP, if it doesnt a new MAC-IP pair will be assigned to it
-                if self.port_mac_ip[in_port] is None:
+                if in_port not in self.port_mac_ip.keys():
                     newIP  = self.ip_mac_gen.incrementar_IP
                     newMAC = self.ip_mac_gen.incrementar_Mac
                     self.port_mac_ip[in_port]= {'mac': newMAC, 'ip': newIP}
 
-
-                switchMac = self.port_to_mac[in_port]
-                switchIp = self.port_to_ip[in_port]
 
                 #Read the packet received from the switch to extract the information
                 pkt = packet.Packet(msg.data)
@@ -110,18 +105,32 @@ class L2Switch(app_manager.RyuApp):
                 #Check for ARP header
                 arp = pkt.get_protocol(arp.arp)
                 if arp is not None:
-                    processArp(arp)
+                    sourceMac = self.port_mac_ip[in_port]['mac']
+                    sourceIp  = self.port_mac_ip[in_port]['ip']
+                    processArp(arp,sourceMac, sourceIp)
 
-                #Check for rules
+
+                ip = pkt.get_protocol(ipv4,ipv4)
+
+                #checking our direction tables to update it
+                if ip.src not in self.address_cache.keys():
+                    self.address_cache[ip.src] = {'mac':srcMac, 'port':in_port}
+
+                #checking if we know how to get to the destination, if we dont an arp request will be sent, and the packet will
+                #be added to the queue
+                if ip.dst not in self.address_cache.keys():
+                    for port in self.port_mac_ip.keys():
+                        portIp  = self.port_mac_ip[port]['ip']
+                        portMac = self.port_mac_ip[port]['mac']
+                        # If possible i would like to substitute with a method
+                        msg = genArpMessage('ff:ff:ff:ff:ff:ff', ip.dst, portIp, portMac)
+                        action = [ofp_parser.OFPActionOutput(port)]
+                        out = ofp_parser.OFPPacketOut(datapath=dp,actions=action,data=msg)
+                        dp.send_msg(out)
+                        #send_msg()
+
+                else:
+                    #Check for rules
 
                 #Stablish relation between MAC and Port
 
-                if self.mac_to_port[srcMac] is None:
-                    #insert into the Switching flow mac & in_port
-                    #insert into local dictionary
-                    self.mac_to_port[srcMac] = in_port
-
-		#actions = [ofp_parser.OFPActionOutput(ofp.OFPP_FLOOD)]
-		#out = ofp_parser.OFPPacketOut(
-			#datapath=dp, buffer_id=msg.buffer_id, in_port=msg.in_port,actions=actions)
-		#dp.send_msg(out)
