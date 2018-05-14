@@ -36,7 +36,7 @@ class BasicTopo ( Topo ):
 		self.addLink(rightHost2, rightSwitch)
 		self.addLink(leftSwitch, CustomSwitch)
 		self.addLink(rightSwitch, CustomSwitch)
-		
+
 #la creamos
 topos = BasicTopo()
 #creamos un objeto mininet
