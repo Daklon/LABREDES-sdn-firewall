@@ -53,15 +53,16 @@ class L2Switch(app_manager.RyuApp):
     def generate_comparable(self, ip_pckt, msg, in_port):
         port = self.address_cache[ip_pckt.dst]['port']
         data = msg.data
+        pkt = packet.Packet(msg.data)
 
         if ip_pckt.proto == 0x06:
-            tcpp = ip_pkt.get_protocol(tcp.tcp)
+            tcpp = pkt.get_protocol(tcp.tcp)
             src_port = tcpp.src_port
             dst_port = tcpp.dst_port
             protocol = 'TCP'
 
         elif ip_pckt.proto == 0x17:
-            udpp = ip_pkt.get_protocol(udp.udp)
+            udpp = pkt.get_protocol(udp.udp)
             src_port = udpp.src_port
             dst_port = udpp.dst_port
             protocol = 'UDP'
