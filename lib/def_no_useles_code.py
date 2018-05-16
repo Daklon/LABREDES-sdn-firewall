@@ -119,7 +119,9 @@ class L2Switch(app_manager.RyuApp):
                         port_out = self.address_cache[ip.dst]['port']
                         print 'PORTOUT: ' + str(port_out)
                         mac = self.port_mac_ip[port_out]['mac']
+                        mac_dst = self.address_cache[ip.dst]['mac']
                         actions = [ dp.ofproto_parser.OFPActionSetField(eth_src=mac),
+                                    dp.ofproto_parser.OFPActionSetField(eth_dst=mac_dst),
                                     dp.ofproto_parser.OFPActionDecNwTtl(),
                                     dp.ofproto_parser.OFPActionOutput(port_out)]
                         self.send_msg(dp, pckt, actions)
@@ -128,9 +130,11 @@ class L2Switch(app_manager.RyuApp):
                     if (ar is not None):
                         if (ar.dst_ip == arp_pckt.src_ip):
                             print ( 'Pending package sent') #debug
-                            port_out = self.address_cache[ip.dst]['port']
+                            port_out = self.address_cache[ar.dst_ip]['port']
                             mac = self.port_mac_ip[port_out]['mac']
+                            mac_dst = self.address_cache[ar.dst_ip]['mac']
                             actions = [ dp.ofproto_parser.OFPActionSetField(eth_src=mac),
+                                        dp.ofproto_parser.OFPActionSetField(eth_dst=mac_dst),
                                         dp.ofproto_parser.OFPActionDecNwTtl(),
                                         dp.ofproto_parser.OFPActionOutput(port_out)]
                             self.send_msg(dp, pckt, actions)
@@ -217,8 +221,10 @@ class L2Switch(app_manager.RyuApp):
                 if(check_rules(comp['SourceIp'], comp['DestIp'], comp['Protocol'], comp['SourcePort'], comp['DestPort'], comp['SourceInterface'])):
                     print  'Packet accepted!!'
                     mac = self.port_mac_ip[port]['mac']
+                    mac_dst = self.address_cache[ip.dst]['mac']
                     print 'src_mac = ' + mac
                     action = [  ofp_parser.OFPActionSetField(eth_src=mac),
+                                ofp_parser.OFPActionSetField(eth_dst=mac_dst),
                                 ofp_parser.OFPActionDecNwTtl(),
                                 ofp_parser.OFPActionOutput(port)]
                     # m = msg.match['ipv4_dst']
