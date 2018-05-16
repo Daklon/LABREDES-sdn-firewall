@@ -91,19 +91,19 @@ net.start()
 #establecemos gateway y rutas
 h1.cmd('route del -net 192.0.0.0 gw 0.0.0.0 netmask 255.0.0.0 dev h1-eth0')
 h1.cmd('route add -net 192.168.0.0 netmask 255.255.255.0 dev h1-eth0')
-h1.cmd('route add default gw 192.168.0.1 netmask 255.255.255.0 dev h1-eth0')
+h1.cmd('route add default gw 192.168.0.1 netmask 0.0.0.0 dev h1-eth0')
 
 h2.cmd('route del -net 192.0.0.0 gw 0.0.0.0 netmask 255.0.0.0 dev h2-eth0')
 h2.cmd('route add -net 192.168.0.0 netmask 255.255.255.0 dev h2-eth0')
-h2.cmd('route add default gw 192.168.0.1 netmask 255.255.255.0 dev h2-eth0')
+h2.cmd('route add default gw 192.168.0.1 netmask 0.0.0.0 dev h2-eth0')
 
 h3.cmd('route del -net 192.0.0.0 gw 0.0.0.0 netmask 255.0.0.0 dev h3-eth0')
 h3.cmd('route add -net 192.168.1.0 netmask 255.255.255.0 dev h3-eth0')
-h3.cmd('route add default gw 192.168.1.1 netmask 255.255.255.0 dev h3-eth0')
+h3.cmd('route add default gw 192.168.1.1 netmask 0.0.0.0 dev h3-eth0')
 
 h4.cmd('route del -net 192.0.0.0 gw 0.0.0.0 netmask 255.0.0.0 dev h4-eth0')
 h4.cmd('route add -net 192.168.1.0 netmask 255.255.255.0 dev h4-eth0')
-h4.cmd('route add default gw 192.168.1.1 netmask 255.255.255.0 dev h4-eth0')
+h4.cmd('route add default gw 192.168.1.1 netmask 0.0.0.0 dev h4-eth0')
 
 #consola
 CLI(net)
