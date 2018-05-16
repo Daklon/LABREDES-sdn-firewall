@@ -11,12 +11,14 @@ def check_rules(SourceIp,DestIp,Protocol,
                     for row in reader:
                         if row['Protocol'] == Protocol or row['Protocol'] == '' or Protocol == '':
                             if row['SourceInterface'] == SourceInterface or row['SourceInterface'] == '' or SourceInterface == '':
-                                if row['DestInterface'] == DestInterface or row['DestInterface'] == '' or DestInterface == '':
-                                    if check_netmask(SourceIp, row['SourceIp'])  or row['SourceIp'] == '' or SourceIP == '':
-                                        if row['DestIp'] == DestIp or row['DestIp'] == '' or DestIp == '':
-                                            if row['SourcePort'] == SourcePort or row['SourcePort'] == '' or SourcePort == '':
-                                                if row['DestPort'] == DestPort or row['DestPort'] == '' or DestPort == '':
+                                if check_netmask(SourceIp, row['SourceIp'])  or row['SourceIp'] == '' or SourceIP == '':
+                                    if row['DestIp'] == DestIp or row['DestIp'] == '' or DestIp == '':
+                                        if row['SourcePort'] == SourcePort or row['SourcePort'] == '' or SourcePort == '':
+                                            if row['DestPort'] == DestPort or row['DestPort'] == '' or DestPort = '':
+                                                if row['Action'] == 'Accept':
                                                     return True
+                                                else:
+                                                    return False
 
                     #si acaba el bucle sin coincidir con ninguna regla, devuelve false
                     return False
