@@ -1,0 +1,4 @@
+SourceIp,DestIp,Protocol,SourcePort,DestPort,SourceInterface,Action
+192.168.0.2/24,,,,,1,Accept
+192.168.1.3,,,,,2,drop
+
