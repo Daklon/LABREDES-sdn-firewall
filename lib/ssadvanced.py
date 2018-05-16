@@ -1,6 +1,7 @@
 from ryu.base import app_manager
 from ryu.controller import ofp_event
-from ryu.controller.handler import CONFIG_DISPATCHER, MAIN_DISPATCHER
+from ryu.controller.handler import CONFIG_DISPATCHER
+from ryu.controller.handler import MAIN_DISPATCHER
 from ryu.controller.handler import set_ev_cls
 from ryu.ofproto import ofproto_v1_3
 from ryu.lib.packet import packet
@@ -9,9 +10,35 @@ from ryu.lib.packet import arp
 from ryu.lib.packet import ipv4
 from ryu.lib.packet import ether_types
 from ryu.ofproto import ether
+from ryu.lib.packet import tcp
+from ryu.lib.packet import udp
+
+import csv
+import ipaddress
+from ryu.ofproto.ofproto_v1_3_parser import OFPMatch
 
 baseIP  = '192.168.0.10'
 baseMAC = '00:00:00:00:00:10'
+
+
+
+def check_rules(SourceIp,DestIp,Protocol,SourcePort,DestPort,SourceInterface,DestInterface):
+    #abirmos el fichero
+    with open('rules-test.txt','r') as csvfile:
+        reader = csv.DictReader(csvfile)
+        #recorremos el fichero comprobando si coincide con alguna de las lineas
+        for row in reader:
+            if row['Protocol'] == Protocol or row['Protocol'] == '' or Protocol == '':
+                if row['SourceInterface'] == SourceInterface or row['SourceInterface'] == '' or SourceInterface == '':
+                    if row['DestInterface'] == DestInterface or row['DestInterface'] == '' or DestInterface == '':
+                        if check_netmask(SourceIp, row['SourceIp'])  or row['SourceIp'] == '' or SourceIP == '':
+                            if row['DestIp'] == DestIp or row['DestIp'] == '' or DestIp == '':
+                                if row['SourcePort'] == SourcePort or row['SourcePort'] == '' or SourcePort == '':
+                                    if row['DestPort'] == DestPort or row['DestPort'] == '' or DestPort == '':
+                                        return True
+
+                    #si acaba el bucle sin coincidir con ninguna regla, devuelve false
+        return False
 
 
 class AssignmentIP_Mac:
@@ -95,33 +122,45 @@ class L2Switch(app_manager.RyuApp):
             # It's an arp reply
             self.address_cache[arp_pckt.src_ip] = {'mac':arp_pckt.src_mac,'port':in_port}
             # check in the packet queue if there are any packets waiting to be released
+
             for pckt in self.pckt_queue:
-                ip = pckt.get_protocol(ipv4.ipv4)
-                if ip.dst == arp_pckt.src_ip:
-                    print 'Pending package sent' #debug
-                    dp.send_msg(pckt)
-                    self.pckt_queue.remove(pckt)
+                pkt = packet.Packet(pckt.data)
+                ip = pkt.get_protocol(ipv4.ipv4)
+                ar = pkt.get_protocol(arp.arp)
+                if (ip is not None):
+                    if (ip.dst == arp_pckt.src_ip):
+                        print 'Pending package sent' #debug
+                        actions = [dp.ofproto_parser.OFPActionOutput(self.address_cache[ip.dst]['port'])]
+                        out = dp.ofproto_parser.OFPPacketOut(datapath=dp,buffer_id=dp.ofproto.OFP_NO_BUFFER, in_port=dp.ofproto.OFPP_CONTROLLER, actions=actions, data=pckt.data)
+                        dp.send_msg(out)
+                        dp.send_msg(pckt)
+                        self.pckt_queue.remove(pckt)
+                else:
+                    if (ar is not None):
+                        if (ar.dst_ip == arp_pckt.src_ip):
+                            print 'Pending package sent' #debug
+                            dp.send_msg(pckt)
+                            self.pckt_queue.remove(pckt)
+
             return None
 
 
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def packet_in_handler(self, ev):
         msg = ev.msg
-        print 'MENSAJEEEE!!!!'
         dp = msg.datapath
 
         in_port = msg.match['in_port']
         ofp = dp.ofproto
         ofp_parser = dp.ofproto_parser
         #---------------------------------------------------------------------------
+        print '---------------------------------------------------------------------------'
         print 'received a message from port'+ str(in_port) #debug
 
         #Check if the port already has an IP, if it doesnt a new MAC-IP pair will be assigned to it
         if in_port not in self.port_mac_ip.keys():
             newIP  = self.ip_mac_gen.incrementar_IP()
-            print newIP
             newMAC = self.ip_mac_gen.incrementar_Mac()
-            print newMAC
             self.port_mac_ip[in_port]= {'mac': newMAC, 'ip': newIP}
             print 'added new key ' #debug
             print self.port_mac_ip[in_port] #debug
@@ -139,10 +178,7 @@ class L2Switch(app_manager.RyuApp):
         #Check for ARP header
         a = pkt.get_protocol(arp.arp)
         if a is not None:
-            print 'The packet is an arp protocol message' #debug
-            print ''
-            print a
-            print ''
+            print '\nThe packet is an arp protocol message\n' #debug
             sourceMac = self.port_mac_ip[in_port]['mac']
             sourceIp  = self.port_mac_ip[in_port]['ip']
             if (a.dst_ip == sourceIp):
@@ -155,18 +191,36 @@ class L2Switch(app_manager.RyuApp):
                     out = ofp_parser.OFPPacketOut(datapath=dp,buffer_id=msg.buffer_id, in_port=ofp.OFPP_CONTROLLER, actions=action, data=arp_msg)
                     dp.send_msg(out)
             else:
-                data = None
-                if msg.buffer_id == ofp.OFP_NO_BUFFER:
+                if a.dst_ip in self.address_cache.keys():
                     data = msg.data
-                action = [ofp_parser.OFPActionOutput(ofp.OFPP_FLOOD)]
-                out = ofp_parser.OFPPacketOut(datapath=dp, buffer_id=msg.buffer_id, in_port=ofp.OFPP_CONTROLLER, actions=action, data=data)
-                dp.send_msg(out)
+                    port = self.address_cache[a.dst_ip]['port']
+                    action = [ofp_parser.OFPActionOutput(port)]
+                    out = ofp_parser.OFPPacketOut(datapath=dp,buffer_id=ofp.OFP_NO_BUFFER, in_port=ofp.OFPP_CONTROLLER, actions=action,data=data)
+                    dp.send_msg(out)
+                else:
+                    for port in self.port_mac_ip.keys():
+                        portIp  = self.port_mac_ip[port]['ip']
+                        portMac = self.port_mac_ip[port]['mac']
+                        print portIp + ' ' + portMac #debug
+                        self.pckt_queue.append(msg)
+                        # If possible i would like to substitute with a method
+                        n_msg = self.genArpMessage('ff:ff:ff:ff:ff:ff', a.dst_ip, portMac, portIp,1)
+                        action = [ofp_parser.OFPActionOutput(port)]
+                        out = ofp_parser.OFPPacketOut(datapath=dp,buffer_id=ofp.OFP_NO_BUFFER, in_port=ofp.OFPP_CONTROLLER, actions=action,data=n_msg.data)
+                        dp.send_msg(out)
+
+
+                # data = None
+                # if msg.buffer_id == ofp.OFP_NO_BUFFER:
+                #     data = msg.data
+                # action = [ofp_parser.OFPActionOutput(ofp.OFPP_FLOOD)]
+                # out = ofp_parser.OFPPacketOut(datapath=dp, buffer_id=msg.buffer_id, in_port=ofp.OFPP_CONTROLLER, actions=action, data=data)
+                # dp.send_msg(out)
 
 
         else:
             print 'extracting IVP4 protocol'
             ip = pkt.get_protocol(ipv4.ipv4)
-            print ip
 
             print self.address_cache.keys()
             #checking our direction tables to update it
@@ -186,10 +240,11 @@ class L2Switch(app_manager.RyuApp):
                     portMac = self.port_mac_ip[port]['mac']
                     print portIp
                     print portMac
+                    self.pckt_queue.append(msg)
                     # If possible i would like to substitute with a method
-                    msg = self.genArpMessage('ff:ff:ff:ff:ff:ff', ip.dst, portMac, portIp,1)
-                    action = [ofp_parser.OFPActionOutput(port)]
-                    out = ofp_parser.OFPPacketOut(datapath=dp,buffer_id=ofp.OFP_NO_BUFFER, in_port=ofp.OFPP_CONTROLLER, actions=action,data=msg)
+                    n_msg = self.genArpMessage('ff:ff:ff:ff:ff:ff', ip.dst, portMac, portIp,1)
+                    action = [ofp_parser.OFPActionOutput(ofp.OFPP_FLOOD)]
+                    out = ofp_parser.OFPPacketOut(datapath=dp,buffer_id=ofp.OFP_NO_BUFFER, in_port=ofp.OFPP_CONTROLLER, actions=action,data=n_msg.data)
                     dp.send_msg(out)
                     #send_msg()
 
@@ -197,8 +252,23 @@ class L2Switch(app_manager.RyuApp):
                 print 'Checking rules'
                 port = self.address_cache[ip.dst]['port']
                 data = msg.data
+                #---------------------------------- NOT TESTED, AND WILL FAIL MISERABLY --------------
+                # if ip.proto == 0x06:
+                #     tcp = pkt.get_protocol(tcp.tcp)
+                #     src_port = tcp.src_port
+                #     dst_port = tcp.dst_port
+                # else if ip.proto == 0x17:
+                #     udp = pkt.get_protocol(udp.udp)
+                #     src_port = udp.src_port
+                #     dst_port = udp.dst_port
+                # else:
+                #     src_port = None
+                #     dst_port = None
+
+                #if(check_rules(ip.src, ip.dst, ip.proto, src_port, dst_port, in_port,port )):
                 # if msg.buffer_id == ofp.OFP_NO_BUFFER:
                 #     data = msg.data
+                print 'Packet accepted!!'
                 action = [ofp_parser.OFPActionOutput(port)]
                 out = ofp_parser.OFPPacketOut(datapath=dp,buffer_id=ofp.OFP_NO_BUFFER, in_port=ofp.OFPP_CONTROLLER, actions=action,data=data)
                 dp.send_msg(out)
