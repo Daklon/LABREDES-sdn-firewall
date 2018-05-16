@@ -12,7 +12,7 @@ from ryu.lib.packet import arp
 from ryu.lib.packet import ipv4
 from ryu.lib.packet import ethernet
 from ryu.ofproto import ether
-
+import ipaddress
 
 
 
@@ -24,9 +24,11 @@ class PacketForward(app_manager.RyuApp):
 
         #Configuración de MAC e IPs asociadas a los puertos: Modificar en función de la topología.
         self.port_mac_ip = {
-                1: {'mac':'08:60:6e:7f:74:e7', 'ip':'192.168.0.1'},
-                2: {'mac':'08:60:6e:7f:74:e8', 'ip':'192.168.1.1'}
+                1: {'mac':'00:AA:00:AA:03:01', 'ip':'192.168.0.1'},
+                2: {'mac':'00:AA:00:AA:03:02', 'ip':'192.168.1.1'}
         }
+        self.attached_network1 = ipaddress.ip_network('192.168.0.1/24')
+        self.attached_network2 = ipaddress.ip_network('192.168.1.1/24')
         self.arp_cache = {}
         self.queue={}
 
@@ -67,7 +69,7 @@ class PacketForward(app_manager.RyuApp):
 
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def packet_in_handler(self, ev):
-        self.logger.info("msg in")
+        #self.logger.info("msg in")
 
         msg = ev.msg
         self.logger.info("message %s", msg)
@@ -88,6 +90,7 @@ class PacketForward(app_manager.RyuApp):
 
 
             macip = self.port_mac_ip[in_port]
+            dest_network = ipaddress.network(macip['ip']
             if a.dst_ip == macip['ip']:
                 if a.opcode==1: # Request
 
@@ -100,10 +103,16 @@ class PacketForward(app_manager.RyuApp):
                     # Sacamos de cola y procesamos los forward
                     self.queue.setdefault(in_port,{})
                     self.queue[in_port].setdefault(a.src_ip, [])
-                    for msg in self.queue[in_port][a.src_ip]:
-                        self.set_forward_rules(msg, in_port)
+                    #print("contenido queue")
+                    #print(self.queue)
+                    #print("spacer")
+                    #print(self.queue[in_port])
+                    #print("spacer")
+                    #print(self.queue[in_port][a.src_ip])
+                for msg in self.queue[in_port][a.src_ip]:
+                    self.set_forward_rules(msg, in_port)
 
-                    self.queue[in_port][a.src_ip] = []
+                self.queue[in_port][a.src_ip] = []
 
 
         elif (eth.ethertype == ether.ETH_TYPE_IP):
@@ -193,9 +202,9 @@ class PacketForward(app_manager.RyuApp):
 
     def decide_port(self, ip):
         # Esta función debe reescribirse
-        if ip=='192.168.0.2' or ip=='192.168.0.3':
+        if ip=='192.168.0.2':
             return 1
-        elif ip=='192.168.1.2' or ip=='192.168.1.3':
+        elif ip=='192.168.0.2':
             return 2
 
     def forward(self, msg):
